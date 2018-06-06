@@ -10,11 +10,14 @@
 #include <GLFW/glfw3.h>
 #include "Shader.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <cmath>
 #include <iostream>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <vector>
+#include <unistd.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -22,7 +25,6 @@ void processInput(GLFWwindow *window);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
-float xoffset = 0.1f;
 
 int main()
 {
@@ -57,48 +59,31 @@ int main()
         return -1;
     }
     
-    Shader myShader("/Users/horizon/Desktop/OpenGL/workspace/EX1/EX1/shader_move.v",
-                    "/Users/horizon/Desktop/OpenGL/workspace/EX1/EX1/shader.f");
+#ifdef __APPLE__
+    Shader Shader("/Users/horizon/Desktop/OpenGL/workspace/EX2/EX2/shader.v", "/Users/horizon/Desktop/OpenGL/workspace/EX2/EX2/shader.f");
+#else
+    Shader Shader("shader.v", "shader.f");
+#endif
     
-    float triangle[] = {
-        // 位置              // 颜色
-         0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // 右下
-        -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // 左下
-         0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // 顶部
-    };
     
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
     float vertices[] = {
-         0.5f,  0.5f, 0.0f,  1.0f, 0.0f, 0.0f, // top right
-         0.5f, -0.5f, 0.0f,  1.0f, 0.5f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f,  1.0f, 1.0f, 0.5f, // bottom left
-        -0.5f,  0.5f, 0.0f,  1.0f, 1.0f, 1.0f, // top left
+        //边界区域
+        -0.5f,   0.5f, 0.0f,    1.0f, 1.0f, 1.0f,    //左上
+         0.5f,   0.5f, 0.0f,    1.0f, 1.0f, 1.0f,    //右上
+        -0.5f,  -0.5f, 0.0f,    1.0f, 1.0f, 1.0f,    //左下
+         0.5f,  -0.5f, 0.0f,    1.0f, 1.0f, 1.0f,    //右下
     };
-    unsigned int indices[] = {  // note that we start from 0!
-        0, 1, 3,  // first Triangle
-        1, 2, 3   // second Triangle
+    
+    //boat indices
+    unsigned int indices[] = {
+        0, 1,
+        1, 3,
+        2, 3,
+        2, 0
     };
-    //设置纹理
-    unsigned int texture;
-    glGenTextures(1,&texture);
-    glBindTexture(GL_TEXTURE_2D,texture);
-    //为当前纹理设置过滤、环绕方式
-    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //加载并生成纹理
-    int t_width, t_height, t_nrChannels;
-    unsigned char* t_data = stbi_load("box.jpg", &t_width, &t_height, &t_nrChannels, 0);
-    if(t_data){
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, t_width, t_height, 0, GL_RGB, GL_UNSIGNED_BYTE, t_data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else{
-        std::cout << "Failed to load texture." << std::endl;
-    }
-    stbi_image_free(t_data);
+    
+    
+    
     //设置顶点、颜色及纹理坐标
     unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
@@ -108,8 +93,8 @@ int main()
     glBindVertexArray(VAO);
     
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-    //glBufferData(GL_ARRAY_BUFFER,sizeof(triangle),vertices,GL_DYNAMIC_DRAW);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,sizeof(vertices), vertices,GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
     
@@ -117,60 +102,76 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     //颜色属性
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    //纹理属性
-    // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-    // remember: do NOT unbind the EBO while a VAO is active as the bound element buffer object IS stored in the VAO; keep the EBO bound.
-    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    
-    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     glBindVertexArray(0);
     
-    
-    // uncomment this call to draw in wireframe polygons.
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    float point[]={-0.5f, 0.5f, 0.0f,   0.0f, 0.0f, 0.0f};
+    std::vector<unsigned int> vaos;
+    std::vector<unsigned int> vbos;
+    for(float x=-0.5f;x<=0.5f;x+=0.001){
+        for(float y=-0.5f;y<=0.5f;y+=0.001){
+            point[0]=x;
+            point[1]=y;
+            point[3]+=0.002f;
+            point[4]+=0.002f;
+            point[5]+=0.002f;
+            unsigned int nowVAO, nowVBO;
+            glGenVertexArrays(1, &nowVAO);
+            glGenBuffers(1, &nowVBO);
+            glBindVertexArray(nowVAO);
+
+            glBindBuffer(GL_ARRAY_BUFFER, nowVBO);
+            glBufferData(GL_ARRAY_BUFFER,sizeof(point), point,GL_DYNAMIC_DRAW);
+
+            //顶点属性
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(0);
+            //颜色属性
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+            glEnableVertexAttribArray(1);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
+
+            vaos.push_back(nowVAO);
+            vbos.push_back(nowVBO);
+        }
+    }
     
     // render loop
     // -----------
-    while (!glfwWindowShouldClose(window))
-    {
+    //while(!glfwWindowShouldClose(window)){
+    for(auto vao:vaos){
+        if(glfwWindowShouldClose(window))break;
         // input
         // -----
         processInput(window);
         
         // render
         // ------
+        
+        
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         
         // active the shaderPorgram
-        //glUseProgram(shaderProgram);
-        myShader.use();
-        myShader.setUniform("xoffset",xoffset);
-        
-        //Uniform variable set color
-        //get now time
-//        float timeValue = glfwGetTime();
-//        float redValue = sin(timeValue)/2.0f+0.7f;
-//        float greenValue = sin(timeValue)/2.0f+0.5f;
-//        float blueValue = cos(timeValue)/2.0f+0.5f;
-//        float alphaValue = cos(timeValue)/2.0f+0.7f;
-//        int vertexColorLocation = glGetUniformLocation(shaderProgram,"outColor");
-//        glUniform4f(vertexColorLocation,redValue,greenValue,blueValue,alphaValue);
+        Shader.use();
         
         glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-        //glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // glBindVertexArray(0); // no need to unbind it every time
+        glDrawElements(GL_LINES, 8, GL_UNSIGNED_INT, 0);
+        //glDrawArrays(GL_LINES, 0, 3);
+        glBindVertexArray(0); // no need to unbind it every time
+        
+        glBindVertexArray(vao); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        glDrawArrays(GL_POINT, 0, 1);
+        
         
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
+        
     }
     
     // optional: de-allocate all resources once they've outlived their purpose:
@@ -178,7 +179,12 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
-    
+//    for(auto vao:vaos){
+//        glDeleteVertexArrays(1, &vao);
+//    }
+//    for(auto vbo:vbos){
+//        glDeleteBuffers(1, &vbo);
+//    }
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
@@ -191,18 +197,6 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_L)==GLFW_PRESS){
-        glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
-    }
-    if (glfwGetKey(window, GLFW_KEY_F)==GLFW_PRESS){
-        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-    }
-    if (glfwGetKey(window, GLFW_KEY_RIGHT)==GLFW_PRESS){
-        xoffset+=0.1f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT)==GLFW_PRESS){
-        xoffset-=0.1f;
-    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
