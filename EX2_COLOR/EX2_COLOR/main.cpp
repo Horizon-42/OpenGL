@@ -11,16 +11,21 @@
 #include <vector>
 #include <stack>
 #include <iostream>
-struct point{
+struct Point{
     float x;
     float y;
+    
+    Point(float x, float y){
+        this->x=x;
+        this->y=y;
+    }
 };
 
 void drawPoint(float x, float y);
 void drawLine(float x1,float y1, float x2, float y2);
 
-std::vector<point> new_points;
-std::stack<point> old_points;
+std::vector<Point> new_points;
+std::stack<Point> old_points;
 int main(void)
 {
     GLFWwindow* window;
@@ -55,17 +60,13 @@ int main(void)
         4, 6,
         4, 0
     };
-    float x=0.0f,y=0.0f;
+    old_points.push(Point(0.0f,0.0f));
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
-        x+=0.01f;
-        y+=0.01f;
         //背景色设置
         glClearColor (0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        /*your draw*/
-        drawPoint(x,y);
         
         for(int i=0;i<8;i+=2){
             drawLine(vertices[indices[i]], vertices[indices[i]+1], vertices[indices[i+1]], vertices[indices[i+1]+1]);
